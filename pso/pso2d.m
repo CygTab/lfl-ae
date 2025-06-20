@@ -1,17 +1,13 @@
 global l1_weight l1_bias l2_weight l2_bias l3_weight l3_bias l4_weight l4_bias ...
        desired_g l5_weight l5_bias l6_weight l6_bias de1_weight de1_bias de2_weight de2_bias all_fitness%#ok<*NUSED> 
 load weight.mat
-% dataset=table2array(readtable('final_gfactor.xlsx'));
-% inde=table2array(readtable('random.xlsx'));
-% test_num=inde(1307:1633);
-% 35 67 86 99 103 143 167 293 301 312 
 dataset=table2array(readtable('ori_g.xlsx'));
 index=3;
 desired_g=dataset(index,:);
-pop=200;
+pop=50;
 dim=2;
 constraint_dim=4;
-%%参数Length Diameter
+%%Length Diameter
 ub=[110,30];
 lb=[30,10];
 
@@ -36,9 +32,9 @@ plot(IterCurve,'r','linewidth',2);
 grid on;
 Real=dataset(index,1:6);
 Result=Best_Pos;
-disp("实际参数: ")
+disp("real: ")
 Real
-disp("预测参数: ")
+disp("prediction: ")
 Result
 x=squeeze(position(:,:,1));
 y=squeeze(position(:,:,2));
@@ -60,11 +56,8 @@ function errors=mse(d1,d2)
     errors=sum((d1-d2).^2);
 end
 
-
-%%迭代过程中长径比，螺距两个参数不是由迭代得来
 function [Best_Pos,Best_fitness,IterCurve]=pso(pop,dim,cdim,ub,lb,...
     fobj,vmax,vmin,maxIter)
-%%设置基本迭代参数
 global position bp all_fitness
 best_position_iter=zeros(maxIter,2);
 IterCurve=ones(1,maxIter);
@@ -72,13 +65,11 @@ c1=1.4;
 c2=1.4;
 wmax=0.9;
 wmin=0.1;
-%%种群和速度初始化
 V=initialization(pop,vmax,vmin,dim);
 X=initialization(pop,ub,lb,dim);
-%%生成受约束变量并合成完整输入参数
 Constrain_variables=zeros(pop,cdim);
 Com=[Constrain_variables X];
-%%计算前4个参数
+%%calculate 1-4 value
 for i=1:pop
     p1=rand(1,1);
     Com(i,2)=get_p(p1);
@@ -88,7 +79,7 @@ for i=1:pop
     Com(i,3)=d_calculate(n1,Com(i,6),n);
     Com(i,1)=Com(i,5)/Com(i,6);
 end
-%%获取初始的每个个体的适应度
+%%get initial fitness
 fitness=zeros(1,pop);
 for i=1:pop
     fitness(i)=fobj(Com(i,:));
@@ -105,7 +96,6 @@ for t=1:maxIter
     tic
     w=wmax-(wmax-wmin)*t/maxIter;
     for i=1:pop
-        %%螺距 个数
         local_best_p=1;
         local_best_n=1;
         local_best_fitness=inf;
@@ -163,7 +153,6 @@ end
 plot(best_position_iter(:,1),best_position_iter(:,2),LineWidth=2);
 end
 
-%%获得螺距
 function p=pitch(a)
     pz=[407.16 376.31 351.64 339.3 283.78 271.44 252.93];
     p=pz(a);
@@ -176,15 +165,12 @@ function p=get_p(a)
     p=pz(a);
 end
 
-%%根据个数以及螺距计算间距
 function d = d_calculate(pitch_index,w_z,n)
     p=[407.16 376.31 351.64 339.3 283.78 271.44 255.93];
     pitch=p(pitch_index);
     d=(pitch-n*w_z)/(n-1);
 end
 
-
-%%种群初始化
 function [X]=initialization(pop,u,l,dim)
 X=zeros(pop,dim);
     for i=1:pop
@@ -193,11 +179,11 @@ X=zeros(pop,dim);
         end 
     end
 end
-%%激活函数LeakyReLU
+%%ReLU
 function y = relu(x)
     y = max(0, x);
 end
-%%计算适应度函数
+
 function fitness=fun(input)
     global l1_weight l1_bias l2_weight l2_bias l3_weight l3_bias l4_weight l4_bias ...
         l5_weight l5_bias l6_weight l6_bias de1_weight de1_bias de2_weight de2_bias desired_g
@@ -210,13 +196,11 @@ function fitness=fun(input)
     y8=relu(y6*de1_weight+de1_bias');
     output=y8*de2_weight+de2_bias';
     fitness=soc_cal(desired_g,output);
-    %%保证金纳米棒间距大于半径
     if(input(3)<input(6)/2)
         fitness=inf;
     end
 end
 
-%%上下限检测
 function [X]=BoundaryCheck(X,ub,lb,dim)
     for i=1:dim
         if X(i)>ub(i)
